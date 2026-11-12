@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: hyperneuron-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hyperneuron}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hyperneuron_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-hyperneuron_ai}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hyperneuron -d hyperneuron_ai"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: hyperneuron-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  hyperneuron-app:
+    build: .
+    container_name: hyperneuron-platform
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://hyperneuron:hyperneuron_secret@postgres:5432/hyperneuron_ai
+      REDIS_URL: redis://redis:6379/0
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+    ports:
+      - "8000:8000"   # Public Generative AI UI (Meridian-inspired clean UI)
+      - "8001:8001"   # Backend Admin Portal (Orchestrator, Agentic AI, DB, Governance UIs)
+      - "8002:8002"   # Security & Monitoring Console (SSO, Audit Logs, Live Telemetry)
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:

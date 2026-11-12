@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hyperneuron Control Plane</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#F8FAFC] text-slate-900 min-h-screen flex font-sans antialiased">
+
+  <!-- Shared Left Navigation across Backend (:8001) & Security (:8002) -->
+  <aside class="w-64 bg-[#111318] text-slate-300 flex flex-col justify-between p-4 shrink-0">
+    <div>
+      <div class="flex items-center gap-2.5 px-2 mb-6">
+        <div class="w-8 h-8 rounded-xl bg-violet-600 flex items-center justify-center text-white">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 19V9m5 10V5m5 14v-7m5 7V8"/>
+          </svg>
+        </div>
+        <div>
+          <div class="font-bold text-white text-sm leading-tight">Hyperneuron</div>
+          <div class="text-[10px] text-violet-400 font-semibold uppercase tracking-wider">Enterprise Planes</div>
+        </div>
+      </div>
+
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 px-2 mb-2">User Plane (:8000)</div>
+      <a href="http://localhost:8000" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white mb-4 transition">
+        <span>↗</span> Public Generative UI
+      </a>
+
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 px-2 mb-2">Backend Plane (:8001)</div>
+      <nav class="space-y-1 mb-5">
+        <a href="http://localhost:8001/orchestrator" data-view="orchestrator" class="nav-link flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium hover:bg-white/10 transition">
+          <span>🔀</span> Orchestrator UI
+        </a>
+        <a href="http://localhost:8001/agents" data-view="agents" class="nav-link flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium hover:bg-white/10 transition">
+          <span>🤖</span> Agentic AI UI
+        </a>
+        <a href="http://localhost:8001/db" data-view="db" class="nav-link flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium hover:bg-white/10 transition">
+          <span>🗄️</span> AI Database UI (PG + Redis)
+        </a>
+        <a href="http://localhost:8001/governance" data-view="governance" class="nav-link flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium hover:bg-white/10 transition">
+          <span>⚖️</span> Governance UI
+        </a>
+      </nav>
+
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 px-2 mb-2">Security Plane (:8002)</div>
+      <nav class="space-y-1">
+        <a href="http://localhost:8002/security" data-view="security" class="nav-link flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium hover:bg-white/10 transition">
+          <span>🛡️</span> Security & Monitoring UI
+        </a>
+      </nav>
+    </div>
+
+    <div class="pt-4 border-t border-slate-800 flex items-center justify-between text-xs">
+      <span class="text-slate-400" id="admin-badge">admin</span>
+      <a href="/auth/logout" class="text-rose-400 hover:underline">Logout</a>
+    </div>
+  </aside>
+
+  <!-- Dynamic View Container -->
+  <main class="flex-1 p-8 overflow-y-auto">
+    <div class="max-w-6xl mx-auto">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <span id="port-pill" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-violet-100 text-violet-700">PORT</span>
+          <h1 id="view-title" class="text-2xl font-bold text-slate-900 mt-1">Control Plane</h1>
+          <p id="view-subtitle" class="text-sm text-slate-500">Manage multi-agent orchestration, data stores, governance, and security.</p>
+        </div>
+        <button onclick="refreshCurrentView()" class="px-4 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs cursor-pointer">
+          Refresh Telemetry
+        </button>
+      </div>
+
+      <div id="view-content" class="space-y-6"></div>
+    </div>
+  </main>
+
+  <script>
+    const activeView = "__ACTIVE_VIEW__";
+    document.querySelectorAll(".nav-link").forEach(el => {
+      if (el.dataset.view === activeView) {
+        el.classList.add("bg-violet-600", "text-white");
+      }
+    });
+
+    async function refreshCurrentView() {
+      const container = document.getElementById("view-content");
+      document.getElementById("port-pill").textContent = `ACTIVE ENDPOINT • ${window.location.host}${window.location.pathname}`;
+
+      if (activeView === "orchestrator") {
+        document.getElementById("view-title").textContent = "Orchestrator UI (LangGraph Supervisor)";
+        document.getElementById("view-subtitle").textContent = "Real-time fan-out/fan-in topology, execution traces, and routing latencies.";
+        const res = await fetch("/api/admin/overview");
+        const data = await res.json();
+        container.innerHTML = `
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200">
+              <div class="text-xs text-slate-400">Orchestrator Model</div>
+              <div class="text-base font-bold text-slate-900 mt-1">${data.models.orchestrator}</div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200">
+              <div class="text-xs text-slate-400">Total Conversations</div>
+              <div class="text-2xl font-bold text-violet-600 mt-1">${data.counts.conversations}</div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200">
+              <div class="text-xs text-slate-400">Agent Node Runs</div>
+              <div class="text-2xl font-bold text-slate-900 mt-1">${data.counts.executions}</div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200">
+              <div class="text-xs text-slate-400">Topology Pattern</div>
+              <div class="text-base font-bold text-emerald-600 mt-1">Hub-and-Spoke DAG</div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 p-6">
+            <h2 class="text-sm font-bold text-slate-900 mb-4">Recent LangGraph Execution Traces</h2>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 text-slate-500 border-b border-slate-200">
+                  <tr>
+                    <th class="py-2.5 px-3">Trace ID</th>
+                    <th class="py-2.5 px-3">Agent Node</th>
+                    <th class="py-2.5 px-3">Model</th>
+                    <th class="py-2.5 px-3">Latency</th>
+                    <th class="py-2.5 px-3">Confidence</th>
+                    <th class="py-2.5 px-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  ${data.recent_executions.map(e => `
+                    <tr>
+                      <td class="py-2.5 px-3 font-mono text-slate-500">${e.trace_id}</td>
+                      <td class="py-2.5 px-3 font-semibold text-slate-800">${e.agent_name}</td>
+                      <td class="py-2.5 px-3 text-slate-600">${e.model_used}</td>
+                      <td class="py-2.5 px-3">${e.latency_ms} ms</td>
+                      <td class="py-2.5 px-3">${(e.confidence * 100).toFixed(0)}%</td>
+                      <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold">${e.status}</span></td>
+                    </tr>
+                  `).join("") || '<tr><td colspan="6" class="py-4 text-center text-slate-400">No executions yet. Run a prompt on :8000.</td></tr>'}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      } else if (activeView === "agents") {
+        document.getElementById("view-title").textContent = "Agentic AI UI (Specialist Fleet)";
+        document.getElementById("view-subtitle").textContent = "Inspect private open-weight LLM bindings, tool permissions, and specialist roles.";
+        const res = await fetch("/api/admin/overview");
+        const data = await res.json();
+        const fleet = [
+          { name: "Chief Orchestrator", model: data.models.orchestrator, role: "Request Quantification, Rubric Decomposition & Final Synthesis", tools: "Structured Planner, State Router" },
+          { name: "Deep Thinking Researcher", model: data.models.thinking, role: "First-Principles Analysis, Counter-Arguments & Strategic Risk", tools: "Reasoning Scratchpad" },
+          { name: "Deep Citation Researcher", model: data.models.citation, role: "Web Search Execution & Span-Level Source Provenance", tools: "DuckDuckGo / Tavily Search" },
+          { name: "Qualified Quantified Researcher", model: data.models.quant, role: "Quantitative Ratios, Financial Benchmarks & Data Tables", tools: "AST Safe Calculator, Metrics Extractor" }
+        ];
+        container.innerHTML = `
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            ${fleet.map(a => `
+              <div class="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col justify-between">
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <h3 class="font-bold text-base text-slate-900">${a.name}</h3>
+                    <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700">ACTIVE</span>
+                  </div>
+                  <p class="text-xs text-slate-500 mb-4">${a.role}</p>
+                </div>
+                <div class="pt-3 border-t border-slate-100 text-xs space-y-1">
+                  <div><span class="text-slate-400">Open-Weight Model:</span> <code class="font-semibold text-violet-700">${a.model}</code></div>
+                  <div><span class="text-slate-400">Bound Tools:</span> <span class="text-slate-700">${a.tools}</span></div>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      } else if (activeView === "db") {
+        document.getElementById("view-title").textContent = "AI Database UI (PostgreSQL + pgvector & Redis)";
+        document.getElementById("view-subtitle").textContent = "Open-source persistence layer for conversation memory, vector embeddings, and pub/sub telemetry.";
+        const res = await fetch("/api/admin/db-status");
+        const db = await res.json();
+        container.innerHTML = `
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white p-6 rounded-2xl border border-slate-200">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="font-bold text-base text-slate-900">PostgreSQL 16 + pgvector</h2>
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">${db.postgres.status}</span>
+              </div>
+              <div class="space-y-2 text-xs text-slate-600">
+                <div><span class="text-slate-400">Dialect:</span> <span class="font-semibold">${db.postgres.dialect}</span></div>
+                <div><span class="text-slate-400">Stored Users:</span> <span class="font-semibold">${db.postgres.users}</span></div>
+                <div><span class="text-slate-400">Conversations:</span> <span class="font-semibold">${db.postgres.conversations}</span></div>
+                <div><span class="text-slate-400">Messages:</span> <span class="font-semibold">${db.postgres.messages}</span></div>
+                <div><span class="text-slate-400">Audit Records:</span> <span class="font-semibold">${db.postgres.audit_logs}</span></div>
+              </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl border border-slate-200">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="font-bold text-base text-slate-900">Redis 7.4 Cache & Event Bus</h2>
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-700">${db.redis.status}</span>
+              </div>
+              <div class="space-y-2 text-xs text-slate-600">
+                <div><span class="text-slate-400">Engine:</span> <span class="font-semibold">${db.redis.backend}</span></div>
+                <div><span class="text-slate-400">Memory Footprint:</span> <span class="font-semibold">${db.redis.used_memory_human}</span></div>
+                <div><span class="text-slate-400">Cached Keys:</span> <span class="font-semibold">${db.redis.keys_count}</span></div>
+                <div><span class="text-slate-400">Connected Clients:</span> <span class="font-semibold">${db.redis.connected_clients}</span></div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (activeView === "governance") {
+        document.getElementById("view-title").textContent = "AI Governance UI";
+        document.getElementById("view-subtitle").textContent = "Enforce citation provenance, data sovereignty boundaries, and compliance guardrails.";
+        const res = await fetch("/api/admin/governance");
+        const policies = await res.json();
+        container.innerHTML = `
+          <div class="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+            ${policies.map(p => `
+              <div class="p-5 flex items-center justify-between gap-4">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-sm text-slate-900">${p.policy_name}</span>
+                    <span class="text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-600">${p.category}</span>
+                  </div>
+                  <p class="text-xs text-slate-500 mt-1">${p.description}</p>
+                </div>
+                <select onchange="updatePolicy(${p.id}, this.value)" class="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50">
+                  <option value="ENFORCE" ${p.enforcement_mode === "ENFORCE" ? "selected" : ""}>ENFORCE</option>
+                  <option value="AUDIT" ${p.enforcement_mode === "AUDIT" ? "selected" : ""}>AUDIT ONLY</option>
+                  <option value="DISABLED" ${p.enforcement_mode === "DISABLED" ? "selected" : ""}>DISABLED</option>
+                </select>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      } else if (activeView === "security") {
+        document.getElementById("view-title").textContent = "Security & Monitoring Console (:8002)";
+        document.getElementById("view-subtitle").textContent = "Dedicated security plane monitoring Google SSO, admin logins, and cross-port access logs.";
+        const res = await fetch("/api/security/telemetry");
+        const sec = await res.json();
+        container.innerHTML = `
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200">
+              <div class="text-xs text-slate-400">SSO Provider</div>
+              <div class="text-base font-bold text-slate-900 mt-1">Google OAuth 2.0 + Local Admin</div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200">
+              <div class="text-xs text-slate-400">Registered Accounts</div>
+              <div class="text-2xl font-bold text-violet-600 mt-1">${sec.users.length}</div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200">
+              <div class="text-xs text-slate-400">Security Events Logged</div>
+              <div class="text-2xl font-bold text-slate-900 mt-1">${sec.logs.length}</div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 p-6">
+            <h2 class="text-sm font-bold text-slate-900 mb-4">Immutable Security & SSO Audit Trail</h2>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 text-slate-500 border-b border-slate-200">
+                  <tr>
+                    <th class="py-2.5 px-3">Actor</th>
+                    <th class="py-2.5 px-3">Action</th>
+                    <th class="py-2.5 px-3">Plane</th>
+                    <th class="py-2.5 px-3">IP</th>
+                    <th class="py-2.5 px-3">Decision</th>
+                    <th class="py-2.5 px-3">Details</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  ${sec.logs.map(l => `
+                    <tr>
+                      <td class="py-2.5 px-3 font-semibold text-slate-800">${l.actor}</td>
+                      <td class="py-2.5 px-3 font-mono">${l.action}</td>
+                      <td class="py-2.5 px-3 text-slate-500">${l.port_plane}</td>
+                      <td class="py-2.5 px-3 text-slate-500">${l.ip_address}</td>
+                      <td class="py-2.5 px-3">
+                        <span class="px-2 py-0.5 rounded-full font-semibold ${l.status === 'ALLOW' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}">${l.status}</span>
+                      </td>
+                      <td class="py-2.5 px-3 text-slate-600">${l.details}</td>
+                    </tr>
+                  `).join("") || '<tr><td colspan="6" class="py-4 text-center text-slate-400">No security events recorded yet.</td></tr>'}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    async function updatePolicy(id, mode) {
+      await fetch(`/api/admin/governance/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enforcement_mode: mode })
+      });
+      refreshCurrentView();
+    }
+
+    refreshCurrentView();
+  </script>
+</body>
+</html>
