@@ -1,3 +1,4 @@
+import os
 import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -10,7 +11,7 @@ from backend.db import AuditEvent, ResearchRun, User, engine, get_db
 
 router = APIRouter()
 started_at = time.monotonic()
-redis_client = Redis.from_url(__import__("os").getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
+redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
 
 
 def require_console_admin(request: Request, db: Session = Depends(get_db)) -> User:

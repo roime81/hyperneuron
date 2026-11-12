@@ -28,7 +28,7 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger("hyperneuron")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
 SESSION_SECRET = os.getenv("SESSION_SECRET", "local-development-change-this-secret")
-if ENVIRONMENT == "production" and SESSION_SECRET == "local-development-change-this-secret":
+if ENVIRONMENT == "production" and (SESSION_SECRET == "local-development-change-this-secret" or "replace-this" in SESSION_SECRET or len(SESSION_SECRET) < 32):
     raise RuntimeError("SESSION_SECRET must be changed before production deployment.")
 if ENVIRONMENT == "production" and os.getenv("ADMIN_PASSWORD", "admin") == "admin":
     raise RuntimeError("Set a unique ADMIN_PASSWORD before production deployment.")
@@ -323,7 +323,7 @@ async def stream_research(
                 if await request.is_disconnected():
                     break
                 for node_name, node_output in event.items():
-                    if node_name == "orchestrator_synthesize":
+                    if node_name in {"orchestrator_synthesize", "clarification_response"}:
                         final_report = node_output.get("final_report")
                     payload = json.dumps({"node": node_name, "data": node_output}, default=str, ensure_ascii=False)
                     yield "data: " + payload + "\n\n"
