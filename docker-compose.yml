@@ -105,6 +105,16 @@ services:
     depends_on: [api]
     restart: unless-stopped
 
+  monitoring-ui:
+    build: .
+    command: ["uvicorn", "backend.console:app", "--host", "0.0.0.0", "--port", "3006"]
+    env_file: .env
+    environment:
+      CONSOLE_SECTION: monitoring
+    ports: ["3006:3006"]
+    depends_on: [api]
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:

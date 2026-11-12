@@ -423,3 +423,7 @@ def admin_governance(db: Session = Depends(get_db), admin: User = Depends(requir
 @app.get("/metrics")
 def metrics():
     return StreamingResponse(iter([generate_latest()]), media_type=CONTENT_TYPE_LATEST)
+
+
+from backend.monitoring import router as monitoring_router
+app.include_router(monitoring_router)

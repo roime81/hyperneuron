@@ -12,6 +12,7 @@ Hyperneuron is a private multi-agent research platform built with FastAPI and La
 | Database | http://localhost:3003 | PostgreSQL and Redis service health |
 | Security | http://localhost:3004 | Authentication and audit events |
 | Governance | http://localhost:3005 | Baseline policies and governance visibility |
+| Monitoring | http://localhost:3006 | API uptime, run counts and data-service health |
 | Backend API | http://localhost:8000 | API health, OpenAPI docs and metrics |
 | API docs | http://localhost:8000/docs | Swagger UI |
 | Prometheus metrics | http://localhost:8000/metrics | HTTP request counters |
