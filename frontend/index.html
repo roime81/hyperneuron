@@ -1,37 +1,101 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hyperneuron — Generative AI</title>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script><script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-<style>
-:root{font-family:Inter,system-ui,sans-serif;color:#17212b;background:#f7f9fb}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% -10%,#e3f0f6,transparent 42%),#f7f9fb}
-header{height:70px;border-bottom:1px solid #e4e9ed;background:#fffE;display:flex;align-items:center;justify-content:space-between;padding:0 max(22px,calc((100vw - 1040px)/2))}.brand{font-size:20px;font-weight:800;letter-spacing:-.04em;color:#163e55}.brand b{color:#2e8a8c}
-main{width:min(900px,calc(100% - 36px));margin:11vh auto 65px}.intro{text-align:center;margin-bottom:30px}.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.18em;color:#53808e;font-weight:700}h1{font-size:clamp(32px,5vw,48px);line-height:1.1;letter-spacing:-.055em;margin:12px 0;color:#152f40}.sub{font-size:16px;line-height:1.65;color:#71808a;max-width:620px;margin:auto}
-.composer{border:1px solid #dce5e9;background:#fff;border-radius:22px;padding:13px;box-shadow:0 18px 55px #1c3d4e12}textarea{width:100%;min-height:130px;resize:vertical;border:0;outline:0;padding:13px 14px;font:inherit;font-size:16px;line-height:1.6}textarea::placeholder{color:#a2adb4}.compose-bottom{display:flex;align-items:center;justify-content:space-between;padding:8px 7px 3px 12px;gap:12px}.hint{font-size:12px;color:#9aa5ab}
-button{border:0;border-radius:999px;padding:12px 21px;font-size:13px;font-weight:700;cursor:pointer}.primary{background:#174f69;color:white}.primary:hover{background:#103d53}.primary:disabled{opacity:.55;cursor:wait}.secondary{background:#edf3f5;color:#385363}
-.result{margin-top:25px;background:white;border:1px solid #e1e8eb;border-radius:20px;overflow:hidden}.result-head{padding:15px 21px;border-bottom:1px solid #edf0f2;display:flex;justify-content:space-between}.result-title{font-size:13px;font-weight:700;color:#385363}.status{font-size:12px;color:#6b808b}.result-body{padding:25px 28px;line-height:1.75;color:#344550;overflow-wrap:anywhere}.result-body:empty{display:none}.result-body h1,.result-body h2,.result-body h3{font-size:initial;text-align:left;color:#203d4e;letter-spacing:-.025em}.result-body h1{font-size:27px}.result-body h2{font-size:21px}.result-body pre{background:#f4f7f8;padding:14px;border-radius:10px;overflow:auto}.result-body table{border-collapse:collapse;width:100%;display:block;overflow:auto}.result-body th,.result-body td{border:1px solid #e1e8eb;padding:8px 10px;text-align:left}
-.auth{max-width:420px;margin:8vh auto 0;background:white;border:1px solid #e0e8eb;border-radius:20px;padding:28px;box-shadow:0 15px 45px #1c3d4e14}.auth h2{margin:0 0 8px;color:#173d52;font-size:22px}.auth p{color:#71808a;font-size:13px;line-height:1.6}.field{width:100%;padding:12px 13px;border:1px solid #dce5e9;border-radius:10px;font:inherit;margin:6px 0 12px}.auth-actions{display:grid;gap:10px;margin-top:8px}.auth-actions button{width:100%}.error{color:#a43b3b;font-size:12px;min-height:18px}.hidden{display:none!important}footer{text-align:center;font-size:11px;color:#a0abb1;margin:45px 0 0}
-@media(max-width:600px){main{margin-top:8vh}.compose-bottom{align-items:flex-end}.hint{max-width:150px}.result-body{padding:18px}}
-</style></head><body>
-<header><div class="brand">hyperneuron<b>.</b></div><div><span id="identity" style="font-size:13px;color:#64717b"></span> <button class="secondary hidden" id="logout">Sign out</button></div></header>
-<main>
-<section id="auth-screen" class="auth hidden"><h2>Welcome to Hyperneuron</h2><p>Sign in to start a private research session. Google SSO is available when configured by your administrator.</p>
-<form id="login-form"><input class="field" id="username" autocomplete="username" placeholder="Username or email" required><input class="field" id="password" type="password" autocomplete="current-password" placeholder="Password" required><div class="error" id="login-error"></div><div class="auth-actions"><button class="primary" type="submit">Sign in</button><button class="secondary" type="button" id="google-login">Continue with Google</button></div></form></section>
-<section id="password-screen" class="auth hidden"><h2>Change your password</h2><p>The initial administrator password must be changed before accessing the platform. Use at least 12 characters.</p><form id="password-form"><input class="field" id="new-password" type="password" minlength="12" placeholder="New password" required><div class="error" id="password-error"></div><button class="primary" type="submit">Update password</button></form></section>
-<section id="workspace" class="hidden"><div class="intro"><div class="eyebrow">Private multi-agent intelligence</div><h1>What would you like to understand?</h1><p class="sub">Ask a question, investigate a company, test a hypothesis, or explore a complex topic. Hyperneuron will research and synthesize the result.</p></div>
-<form class="composer" id="research-form"><textarea id="prompt" maxlength="20000" placeholder="Ask Hyperneuron anything..." required></textarea><div class="compose-bottom"><span class="hint">Be specific. Ask for analysis, evidence, comparisons or recommendations.</span><button class="primary" id="run-button" type="submit">Generate answer ↗</button></div></form>
-<section class="result hidden" id="result"><div class="result-head"><span class="result-title">Response</span><span class="status" id="run-status">Ready</span></div><div class="result-body" id="result-body"></div></section></section>
-<footer>Hyperneuron AI Platform</footer></main>
-<script>
-const API=window.HYPERNEURON_API||"http://localhost:8000", $=id=>document.getElementById(id);
-async function api(path,options){const opts=Object.assign({credentials:"include"},options||{});opts.headers=Object.assign({"Content-Type":"application/json"},opts.headers||{});return fetch(API+path,opts);}
-function show(id){["auth-screen","password-screen","workspace"].forEach(n=>$(n).classList.toggle("hidden",n!==id));}
-async function refreshSession(){try{const r=await api("/api/auth/me"),d=await r.json();if(!d.authenticated){show("auth-screen");$("identity").textContent="";$("logout").classList.add("hidden");return;}if(d.user.must_change_password){show("password-screen");return;}show("workspace");$("identity").textContent=d.user.full_name||d.user.username;$("logout").classList.remove("hidden");}catch(e){show("auth-screen");$("login-error").textContent="Cannot reach the Hyperneuron API.";}}
-$("login-form").addEventListener("submit",async e=>{e.preventDefault();$("login-error").textContent="";try{const r=await api("/api/auth/login",{method:"POST",body:JSON.stringify({username:$("username").value,password:$("password").value})}),d=await r.json();if(!r.ok)throw new Error(d.detail||"Sign in failed");await refreshSession();}catch(err){$("login-error").textContent=err.message;}});
-$("google-login").addEventListener("click",()=>{location.href=API+"/auth/google/login?next="+encodeURIComponent(location.href);});
-$("password-form").addEventListener("submit",async e=>{e.preventDefault();$("password-error").textContent="";try{const r=await api("/api/auth/change-password",{method:"POST",body:JSON.stringify({new_password:$("new-password").value})}),d=await r.json();if(!r.ok)throw new Error(d.detail||"Password update failed");$("new-password").value="";await refreshSession();}catch(err){$("password-error").textContent=err.message;}});
-$("logout").addEventListener("click",async()=>{await api("/api/auth/logout",{method:"POST"});await refreshSession();});
-$("research-form").addEventListener("submit",async e=>{e.preventDefault();const prompt=$("prompt").value.trim();if(prompt.length<3)return;$("run-button").disabled=true;$("run-button").textContent="Researching…";$("result").classList.remove("hidden");$("result-body").textContent="";$("run-status").textContent="Planning research";
-try{const r=await api("/api/research/stream",{method:"POST",body:JSON.stringify({prompt})});if(r.status===401||r.status===403){await refreshSession();throw new Error("Please sign in and complete account setup.");}if(!r.ok||!r.body){const err=await r.json();throw new Error(err.detail||"Unable to start research");}const reader=r.body.getReader(),decoder=new TextDecoder();let buffer="";
-while(true){const part=await reader.read();if(part.done)break;buffer+=decoder.decode(part.value,{stream:true});const chunks=buffer.split("\n\n");buffer=chunks.pop()||"";for(const chunk of chunks){const line=chunk.split("\n").find(x=>x.startsWith("data: "));if(!line)continue;const msg=JSON.parse(line.slice(6));if(msg.node==="orchestrator_plan")$("run-status").textContent="Researching";if(["deep_thinking","deep_citation","quantified_researcher"].includes(msg.node))$("run-status").textContent="Reviewing evidence";if(msg.node==="orchestrator_synthesize"&&msg.data&&msg.data.final_report){const md=window.marked?marked.parse(msg.data.final_report):msg.data.final_report;$("result-body").innerHTML=window.DOMPurify?DOMPurify.sanitize(md):md;$("run-status").textContent="Completed";}if(msg.node==="ERROR")throw new Error(msg.message||"Research failed");if(msg.node==="DONE")$("run-status").textContent="Completed";}}
-}catch(err){$("run-status").textContent="Unable to complete";$("result-body").textContent=err.message;}finally{$("run-button").disabled=false;$("run-button").textContent="Generate answer ↗";}});
-refreshSession();
-</script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>www.hyperneuron.io — AI Deep Lab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen font-sans antialiased">
+  <div class="max-w-5xl mx-auto px-6 py-10">
+    <div class="bg-white/90 backdrop-blur border border-slate-200 rounded-2xl shadow-sm overflow-hidden mb-8">
+      <div class="bg-[#13547a] text-white px-6 py-3 flex items-center justify-between">
+        <span class="font-semibold tracking-wide text-sm">www.hyperneuron.io</span>
+        <span class="text-xs bg-white/15 px-2.5 py-0.5 rounded-full">Private Multi-Agent Deep Lab</span>
+      </div>
+      <div class="p-6">
+        <form id="research-form" class="flex flex-col sm:flex-row gap-3">
+          <input id="prompt-input" type="text" required placeholder="Enter enterprise intelligence or due diligence prompt..." class="flex-1 px-5 py-3.5 rounded-full bg-sky-50/70 border border-sky-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#13547a]" />
+          <button type="submit" class="px-7 py-3.5 rounded-full bg-[#13547a] hover:bg-[#0e4160] text-white font-medium transition">Run Deep Lab</button>
+        </form>
+      </div>
+    </div>
+    <div class="bg-sky-50/60 border border-sky-200 rounded-2xl p-6 mb-8">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-[#13547a] font-bold text-lg">Hyperneuron AI Deep Lab — Live Execution</h2>
+        <span id="status-badge" class="text-xs font-medium px-3 py-1 rounded-full bg-slate-200 text-slate-700">Idle</span>
+      </div>
+      <div class="flex justify-center mb-6">
+        <div id="card-orchestrator" class="w-full max-w-md p-4 rounded-xl border border-slate-300 bg-white text-center transition-all">
+          <div class="font-bold text-slate-900">Request Quantification (Chief Orchestrator)</div>
+          <div class="text-xs text-slate-500 mt-1">DeepSeek-V4.1-Flash</div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div id="card-deep_thinking" class="p-4 rounded-xl border border-slate-300 bg-white text-center transition-all">
+          <div class="font-bold text-slate-900">Deep Thinking Researcher</div>
+          <div class="text-xs text-slate-500 mt-1">Gemma 4</div>
+        </div>
+        <div id="card-deep_citation" class="p-4 rounded-xl border border-slate-300 bg-white text-center transition-all">
+          <div class="font-bold text-slate-900">Deep Citation Researcher</div>
+          <div class="text-xs text-slate-500 mt-1">Llama 4 Scout</div>
+        </div>
+        <div id="card-quantified_researcher" class="p-4 rounded-xl border border-slate-300 bg-white text-center transition-all">
+          <div class="font-bold text-slate-900">Qualified Quantified Researcher</div>
+          <div class="text-xs text-slate-500 mt-1">Qwen 3.6</div>
+        </div>
+      </div>
+    </div>
+    <div id="report-container" class="hidden bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
+      <div id="report-content" class="prose prose-slate max-w-none"></div>
+    </div>
+  </div>
+  <script>
+    const form = document.getElementById("research-form");
+    const statusBadge = document.getElementById("status-badge");
+    const reportContainer = document.getElementById("report-container");
+    const reportContent = document.getElementById("report-content");
+    function setCardState(id, state) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.className = "p-4 rounded-xl border text-center transition-all bg-white " + (state === "active" ? "border-amber-400 bg-amber-50" : state === "done" ? "border-emerald-500 bg-emerald-50" : "border-slate-300");
+    }
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const prompt = document.getElementById("prompt-input").value.trim();
+      if (!prompt) return;
+      reportContainer.classList.add("hidden");
+      statusBadge.textContent = "Orchestrating...";
+      statusBadge.className = "text-xs font-medium px-3 py-1 rounded-full bg-amber-100 text-amber-800";
+      ["card-orchestrator", "card-deep_thinking", "card-deep_citation", "card-quantified_researcher"].forEach(id => setCardState(id, "idle"));
+      setCardState("card-orchestrator", "active");
+      const res = await fetch("/api/research/stream", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({prompt}) });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const {value, done} = await reader.read();
+        if (done) break;
+        for (const line of decoder.decode(value).split("\n\n")) {
+          if (!line.startsWith("data: ")) continue;
+          const p = JSON.parse(line.replace("data: ", ""));
+          if (p.node === "orchestrator_plan") {
+            setCardState("card-orchestrator", "done");
+            ["card-deep_thinking", "card-deep_citation", "card-quantified_researcher"].forEach(id => setCardState(id, "active"));
+            statusBadge.textContent = "Parallel Research Running...";
+          } else if (["deep_thinking", "deep_citation", "quantified_researcher"].includes(p.node)) {
+            setCardState(`card-${p.node}`, "done");
+          } else if (p.node === "orchestrator_synthesize") {
+            setCardState("card-orchestrator", "done");
+            reportContent.innerHTML = marked.parse(p.data.final_report || "");
+            reportContainer.classList.remove("hidden");
+          } else if (p.node === "DONE") {
+            statusBadge.textContent = "Completed";
+            statusBadge.className = "text-xs font-medium px-3 py-1 rounded-full bg-emerald-100 text-emerald-800";
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
