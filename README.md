@@ -1,79 +1,43 @@
-# Hyperneuron AI Platform
+# Hyperneuron AI Platform (Multi-Plane Sovereign AI Architecture)
 
-Hyperneuron is a private multi-agent research platform built with FastAPI and LangGraph. The end-user workspace is intentionally minimal: sign in, submit a prompt, and read the generated response. Operational capabilities are exposed through separate protected workspaces.
+Hyperneuron AI separates public generative user experiences from administrative orchestration, database management, AI governance, and security monitoring across **isolated network ports and dedicated UIs**, backed by **PostgreSQL (`pgvector`)** and **Redis**.
 
-## Platform topology
+---
 
-| Workspace | URL (local) | Purpose |
-| --- | --- | --- |
-| Generative AI | http://localhost:3000 | User prompt and generated result |
-| Orchestrator | http://localhost:3001 | Planning, routing, synthesis and run history |
-| Agentic AI | http://localhost:3002 | Specialist agents and model assignments |
-| Database | http://localhost:3003 | PostgreSQL and Redis service health |
-| Security | http://localhost:3004 | Authentication and audit events |
-| Governance | http://localhost:3005 | Baseline policies and governance visibility |
-| Monitoring | http://localhost:3006 | API uptime, run counts and data-service health |
-| Backend API | http://localhost:8000 | API health, OpenAPI docs and metrics |
-| API docs | http://localhost:8000/docs | Swagger UI |
-| Prometheus metrics | http://localhost:8000/metrics | HTTP request counters |
+## Multi-Plane Port & UI Architecture
 
-All six browser workspaces use the same authentication service and protected API. Operational consoles require an administrator role.
+| Plane | Port & Endpoint | Purpose & Access Control |
+| :--- | :--- | :--- |
+| **User End Generative UI** | `http://localhost:8000/` | Clean, distraction-free generative workspace focused purely on prompting and synthesized results. Supports Guest, **Google SSO**, and Admin sessions. |
+| **Orchestrator UI** | `http://localhost:8001/orchestrator` | LangGraph supervisor telemetry, fan-out/fan-in latencies, and trace logs *(Admin Protected)*. |
+| **Agentic AI UI** | `http://localhost:8001/agents` | Specialist open-weight LLM fleet (`DeepSeek-V4.1`, `Gemma 4`, `Llama 4 Scout`, `Qwen 3.6`) & tool bindings *(Admin Protected)*. |
+| **AI Database UI** | `http://localhost:8001/db` | Live health, storage metrics, and table counts for **PostgreSQL 16 (`pgvector`)** and **Redis 7.4** *(Admin Protected)*. |
+| **Governance UI** | `http://localhost:8001/governance` | Live enforcement toggles for Citation Provenance, Data Sovereignty, and PII Redaction *(Admin Protected)*. |
+| **Security & Monitoring UI** | `http://localhost:8002/security` | Isolated security operations plane tracking Google OAuth2 SSO logins, admin access, and audit logs *(Admin Protected)*. |
 
-## Architecture
+---
 
-- **Generative UI:** isolated prompt-first interface; only the user prompt and final answer are shown.
-- **Orchestration:** FastAPI invokes the existing LangGraph supervisor and specialist workflow. Specialist execution fans out in parallel and converges through a single synthesis barrier.
-- **Agentic AI:** separate workspace for the Chief Orchestrator, Deep Thinking Researcher, Deep Citation Researcher and Qualified Quantified Researcher.
-- **Data services:** PostgreSQL stores users, research runs, audit events and governance policies. Redis provides short-lived runtime state and login-attempt throttling.
-- **Security:** signed HTTP-only session cookie, local password authentication, optional Google OpenID Connect, role checks, login throttling and audit logging.
-- **Governance:** seeded baseline policy records for data retention, model approval, human oversight and access review.
+## Authentication & Single Sign-On (SSO)
 
-## Quick start with Docker Compose
+* **Default Admin Account:** `admin` / `admin` (configurable via `ADMIN_DEFAULT_USER` and `ADMIN_DEFAULT_PASS` in `.env`).
+* **Google OAuth 2.0 SSO:** Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env` with redirect URI `http://localhost:8000/auth/google/callback`.
 
-1. Copy .env.example to .env.
-2. Review the local credentials and inference endpoint in .env.
-3. Start the stack with the command: docker compose up --build.
-4. Open http://localhost:3000.
+---
 
-The local first-run administrator is username admin, password admin. The administrator is forced to change this password on the first sign-in before any workspace API can be used. This default is for local development only. Set a unique ADMIN_PASSWORD, a long random SESSION_SECRET, secure cookies and HTTPS before deploying outside a trusted local machine.
+## Quick Start
 
-PostgreSQL and Redis are available to application containers on the Compose network. Their ports are not published to the host by default.
+### Option A: Run with Docker Compose (Recommended — Starts PostgreSQL + pgvector, Redis & All 3 Ports)
+```bash
+cp .env.example .env
+docker compose up --build
+```
 
-## Google SSO setup
-
-1. Create an OAuth 2.0 Web application client in Google Cloud Console.
-2. Add the exact authorized redirect URI http://localhost:8000/auth/google/callback for local development.
-3. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.
-4. Restart the API and UI services.
-
-Google identities are provisioned with the user role. Administrator access remains an explicit local/admin provisioning responsibility; Google sign-in does not automatically grant admin privileges. To allow a specific Google identity to sign in as the seeded administrator, set ADMIN_EMAIL to that verified Google email before the administrator is first created. For production, use HTTPS and set SESSION_COOKIE_SECURE=true.
-
-## Local Python development
-
-Install Python 3.11+ and the packages in requirements.txt. Start PostgreSQL and Redis, configure .env, then run the API:
-
-    uvicorn backend.main:app --reload --port 8000
-
-Run the user UI in another terminal:
-
-    CONSOLE_SECTION=user uvicorn backend.console:app --reload --port 3000
-
-Run each operational console separately by setting CONSOLE_SECTION to orchestrator, agents, database, security governance or monitoring, and assigning its matching port from the table above.
-
-For non-Docker local development, set DATABASE_URL to a reachable PostgreSQL instance and REDIS_URL to a reachable Redis instance. If DATABASE_URL is omitted, the application uses a local SQLite file for basic development.
-
-## Configuration
-
-See .env.example for the full environment variable list. The LLM provider remains OpenAI-compatible (Ollama by default). In Docker, host.docker.internal is used to reach an Ollama instance running on the host.
-
-## Operational notes
-
-- Database tables are initialized automatically at API startup for this MVP. Use a versioned migration system such as Alembic before introducing production schema changes.
-- Google SSO requires valid OAuth credentials and an exact redirect URI.
-- Configure HTTPS termination, trusted proxy settings, backups, secret management, retention schedules and external observability before production.
-- The security and governance consoles provide initial administrative visibility; they are not a substitute for a full SIEM, policy engine or compliance certification.
-- Research outputs depend on the configured language models and web-search provider availability.
-
-## License
-
-MIT. See LICENSE.
+### Option B: Run Locally with Python
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env
+python run_platform.py
+```
+*(Note: If PostgreSQL or Redis are not running locally on ports `5432`/`6379`, Hyperneuron automatically falls back to local SQLite + in-memory cache so you can test immediately.)*

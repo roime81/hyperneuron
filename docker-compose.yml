@@ -1,119 +1,56 @@
+version: "3.9"
+
 services:
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
+    container_name: hyperneuron-postgres
     environment:
-      POSTGRES_DB: hyperneuron
-      POSTGRES_USER: hyperneuron
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hyperneuron_dev_only}
+      POSTGRES_USER: ${POSTGRES_USER:-hyperneuron}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hyperneuron_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-hyperneuron_ai}
+    ports:
+      - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hyperneuron -d hyperneuron"]
+      test: ["CMD-SHELL", "pg_isready -U hyperneuron -d hyperneuron_ai"]
       interval: 5s
-      timeout: 3s
-      retries: 20
-    restart: unless-stopped
+      timeout: 5s
+      retries: 5
 
   redis:
-    image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes"]
+    image: redis:7.4-alpine
+    container_name: hyperneuron-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
     volumes:
-      - redis_data:/data
+      - redisdata:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
-      timeout: 3s
-      retries: 20
-    restart: unless-stopped
+      timeout: 5s
+      retries: 5
 
-  api:
+  hyperneuron-app:
     build: .
-    command: ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
-    env_file: .env
+    container_name: hyperneuron-platform
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql+psycopg://hyperneuron:${POSTGRES_PASSWORD:-hyperneuron_dev_only}@postgres:5432/hyperneuron
+      DATABASE_URL: postgresql+asyncpg://hyperneuron:hyperneuron_secret@postgres:5432/hyperneuron_ai
       REDIS_URL: redis://redis:6379/0
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
     ports:
-      - "8000:8000"
+      - "8000:8000"   # Public Generative AI UI (Meridian-inspired clean UI)
+      - "8001:8001"   # Backend Admin Portal (Orchestrator, Agentic AI, DB, Governance UIs)
+      - "8002:8002"   # Security & Monitoring Console (SSO, Audit Logs, Live Telemetry)
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    restart: unless-stopped
-
-  user-ui:
-    build: .
-    command: ["uvicorn", "backend.console:app", "--host", "0.0.0.0", "--port", "3000"]
-    env_file: .env
-    environment:
-      CONSOLE_SECTION: user
-    ports: ["3000:3000"]
-    depends_on: [api]
-    restart: unless-stopped
-
-  orchestrator-ui:
-    build: .
-    command: ["uvicorn", "backend.console:app", "--host", "0.0.0.0", "--port", "3001"]
-    env_file: .env
-    environment:
-      CONSOLE_SECTION: orchestrator
-    ports: ["3001:3001"]
-    depends_on: [api]
-    restart: unless-stopped
-
-  agents-ui:
-    build: .
-    command: ["uvicorn", "backend.console:app", "--host", "0.0.0.0", "--port", "3002"]
-    env_file: .env
-    environment:
-      CONSOLE_SECTION: agents
-    ports: ["3002:3002"]
-    depends_on: [api]
-    restart: unless-stopped
-
-  database-ui:
-    build: .
-    command: ["uvicorn", "backend.console:app", "--host", "0.0.0.0", "--port", "3003"]
-    env_file: .env
-    environment:
-      CONSOLE_SECTION: database
-    ports: ["3003:3003"]
-    depends_on: [api]
-    restart: unless-stopped
-
-  security-ui:
-    build: .
-    command: ["uvicorn", "backend.console:app", "--host", "0.0.0.0", "--port", "3004"]
-    env_file: .env
-    environment:
-      CONSOLE_SECTION: security
-    ports: ["3004:3004"]
-    depends_on: [api]
-    restart: unless-stopped
-
-  governance-ui:
-    build: .
-    command: ["uvicorn", "backend.console:app", "--host", "0.0.0.0", "--port", "3005"]
-    env_file: .env
-    environment:
-      CONSOLE_SECTION: governance
-    ports: ["3005:3005"]
-    depends_on: [api]
-    restart: unless-stopped
-
-  monitoring-ui:
-    build: .
-    command: ["uvicorn", "backend.console:app", "--host", "0.0.0.0", "--port", "3006"]
-    env_file: .env
-    environment:
-      CONSOLE_SECTION: monitoring
-    ports: ["3006:3006"]
-    depends_on: [api]
-    restart: unless-stopped
 
 volumes:
-  postgres_data:
-  redis_data:
+  pgdata:
+  redisdata:
