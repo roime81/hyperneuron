@@ -58,7 +58,7 @@ Run the user UI in another terminal:
 
     CONSOLE_SECTION=user uvicorn backend.console:app --reload --port 3000
 
-Run each operational console separately by setting CONSOLE_SECTION to orchestrator, agents, database, security or governance, and assigning its matching port from the table above.
+Run each operational console separately by setting CONSOLE_SECTION to orchestrator, agents, database, security governance or monitoring, and assigning its matching port from the table above.
 
 For non-Docker local development, set DATABASE_URL to a reachable PostgreSQL instance and REDIS_URL to a reachable Redis instance. If DATABASE_URL is omitted, the application uses a local SQLite file for basic development.
 

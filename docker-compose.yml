@@ -33,7 +33,6 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://hyperneuron:${POSTGRES_PASSWORD:-hyperneuron_dev_only}@postgres:5432/hyperneuron
       REDIS_URL: redis://redis:6379/0
-      GOOGLE_REDIRECT_URI: http://localhost:8000/auth/google/callback
     ports:
       - "8000:8000"
     depends_on:
