@@ -5,18 +5,27 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from authlib.integrations.starlette_client import OAuth
 from jose import jwt, JWTError
 from sqlalchemy import select
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 from backend.core.config import settings
 from backend.core.database import AsyncSessionLocal, UserAccount, SecurityAuditLog
 
 ALGORITHM = "HS256"
 COOKIE_NAME = "hyperneuron_session"
+_REDIRECT_TARGETS = {
+    "/": "/",
+    "/orchestrator": "/orchestrator",
+    "/agents": "/agents",
+    "/db": "/db",
+    "/governance": "/governance",
+    "/security": "/security",
+}
 
 
 def _safe_redirect_target(target: str) -> str:
-    if not target.startswith("/") or target.startswith("//") or "\\" in target:
+    parsed = urlsplit(target)
+    if parsed.scheme or parsed.netloc or not parsed.path.startswith("/") or parsed.path.startswith("//") or "\\" in target:
         return "/"
-    return target
+    return _REDIRECT_TARGETS.get(parsed.path, "/")
 
 
 oauth = OAuth()
