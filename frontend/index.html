@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>www.hyperneuron.io — AI Deep Lab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen font-sans antialiased">
+  <div class="max-w-5xl mx-auto px-6 py-10">
+    <div class="bg-white/90 backdrop-blur border border-slate-200 rounded-2xl shadow-sm overflow-hidden mb-8">
+      <div class="bg-[#13547a] text-white px-6 py-3 flex items-center justify-between">
+        <span class="font-semibold tracking-wide text-sm">www.hyperneuron.io</span>
+        <span class="text-xs bg-white/15 px-2.5 py-0.5 rounded-full">Private Multi-Agent Deep Lab</span>
+      </div>
+      <div class="p-6">
+        <form id="research-form" class="flex flex-col sm:flex-row gap-3">
+          <input id="prompt-input" type="text" required placeholder="Enter enterprise intelligence or due diligence prompt..." class="flex-1 px-5 py-3.5 rounded-full bg-sky-50/70 border border-sky-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#13547a]" />
+          <button type="submit" class="px-7 py-3.5 rounded-full bg-[#13547a] hover:bg-[#0e4160] text-white font-medium transition">Run Deep Lab</button>
+        </form>
+      </div>
+    </div>
+    <div class="bg-sky-50/60 border border-sky-200 rounded-2xl p-6 mb-8">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-[#13547a] font-bold text-lg">Hyperneuron AI Deep Lab — Live Execution</h2>
+        <span id="status-badge" class="text-xs font-medium px-3 py-1 rounded-full bg-slate-200 text-slate-700">Idle</span>
+      </div>
+      <div class="flex justify-center mb-6">
+        <div id="card-orchestrator" class="w-full max-w-md p-4 rounded-xl border border-slate-300 bg-white text-center transition-all">
+          <div class="font-bold text-slate-900">Request Quantification (Chief Orchestrator)</div>
+          <div class="text-xs text-slate-500 mt-1">DeepSeek-V4.1-Flash</div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div id="card-deep_thinking" class="p-4 rounded-xl border border-slate-300 bg-white text-center transition-all">
+          <div class="font-bold text-slate-900">Deep Thinking Researcher</div>
+          <div class="text-xs text-slate-500 mt-1">Gemma 4</div>
+        </div>
+        <div id="card-deep_citation" class="p-4 rounded-xl border border-slate-300 bg-white text-center transition-all">
+          <div class="font-bold text-slate-900">Deep Citation Researcher</div>
+          <div class="text-xs text-slate-500 mt-1">Llama 4 Scout</div>
+        </div>
+        <div id="card-quantified_researcher" class="p-4 rounded-xl border border-slate-300 bg-white text-center transition-all">
+          <div class="font-bold text-slate-900">Qualified Quantified Researcher</div>
+          <div class="text-xs text-slate-500 mt-1">Qwen 3.6</div>
+        </div>
+      </div>
+    </div>
+    <div id="report-container" class="hidden bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
+      <div id="report-content" class="prose prose-slate max-w-none"></div>
+    </div>
+  </div>
+  <script>
+    const form = document.getElementById("research-form");
+    const statusBadge = document.getElementById("status-badge");
+    const reportContainer = document.getElementById("report-container");
+    const reportContent = document.getElementById("report-content");
+    function setCardState(id, state) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.className = "p-4 rounded-xl border text-center transition-all bg-white " + (state === "active" ? "border-amber-400 bg-amber-50" : state === "done" ? "border-emerald-500 bg-emerald-50" : "border-slate-300");
+    }
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const prompt = document.getElementById("prompt-input").value.trim();
+      if (!prompt) return;
+      reportContainer.classList.add("hidden");
+      statusBadge.textContent = "Orchestrating...";
+      statusBadge.className = "text-xs font-medium px-3 py-1 rounded-full bg-amber-100 text-amber-800";
+      ["card-orchestrator", "card-deep_thinking", "card-deep_citation", "card-quantified_researcher"].forEach(id => setCardState(id, "idle"));
+      setCardState("card-orchestrator", "active");
+      const res = await fetch("/api/research/stream", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({prompt}) });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const {value, done} = await reader.read();
+        if (done) break;
+        for (const line of decoder.decode(value).split("\n\n")) {
+          if (!line.startsWith("data: ")) continue;
+          const p = JSON.parse(line.replace("data: ", ""));
+          if (p.node === "orchestrator_plan") {
+            setCardState("card-orchestrator", "done");
+            ["card-deep_thinking", "card-deep_citation", "card-quantified_researcher"].forEach(id => setCardState(id, "active"));
+            statusBadge.textContent = "Parallel Research Running...";
+          } else if (["deep_thinking", "deep_citation", "quantified_researcher"].includes(p.node)) {
+            setCardState(`card-${p.node}`, "done");
+          } else if (p.node === "orchestrator_synthesize") {
+            setCardState("card-orchestrator", "done");
+            reportContent.innerHTML = marked.parse(p.data.final_report || "");
+            reportContainer.classList.remove("hidden");
+          } else if (p.node === "DONE") {
+            statusBadge.textContent = "Completed";
+            statusBadge.className = "text-xs font-medium px-3 py-1 rounded-full bg-emerald-100 text-emerald-800";
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
