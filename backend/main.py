@@ -41,6 +41,8 @@ UI_ORIGINS = [
     ).split(",") if item.strip()
 ]
 COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
+if ENVIRONMENT == "production" and not COOKIE_SECURE:
+    raise RuntimeError("SESSION_COOKIE_SECURE=true is required in production.")
 redis_client = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
 oauth = OAuth()
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
@@ -314,6 +316,7 @@ async def stream_research(
 
     async def event_generator():
         final_report = None
+        disconnected = False
         initial_state = {
             "user_prompt": prompt, "plan": None, "specialist_reports": [],
             "iteration": 0, "final_report": None,
@@ -321,6 +324,7 @@ async def stream_research(
         try:
             async for event in graph.astream(initial_state, stream_mode="updates"):
                 if await request.is_disconnected():
+                    disconnected = True
                     break
                 for node_name, node_output in event.items():
                     if node_name in {"orchestrator_synthesize", "clarification_response"}:
@@ -330,16 +334,17 @@ async def stream_research(
             with SessionLocal() as session:
                 saved_run = session.get(ResearchRun, run_id)
                 if saved_run:
-                    saved_run.status = "completed"
+                    saved_run.status = "cancelled" if disconnected else "completed"
                     saved_run.final_report = final_report
                     saved_run.completed_at = datetime.now(timezone.utc)
                     session.add(saved_run)
                     session.commit()
-            try:
-                redis_client.setex("hyperneuron:run:" + str(run_id), 3600, json.dumps({"status": "completed"}))
-            except RedisError:
-                pass
-            yield 'data: {"node":"DONE"}\n\n'
+            if not disconnected:
+                try:
+                    redis_client.setex("hyperneuron:run:" + str(run_id), 3600, json.dumps({"status": "completed"}))
+                except RedisError:
+                    pass
+                yield 'data: {"node":"DONE"}\n\n'
         except Exception:
             logger.exception("Research run %s failed", run_id)
             with SessionLocal() as session:
