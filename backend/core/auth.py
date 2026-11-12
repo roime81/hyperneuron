@@ -5,11 +5,19 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from authlib.integrations.starlette_client import OAuth
 from jose import jwt, JWTError
 from sqlalchemy import select
+from urllib.parse import urlencode
 from backend.core.config import settings
 from backend.core.database import AsyncSessionLocal, UserAccount, SecurityAuditLog
 
 ALGORITHM = "HS256"
 COOKIE_NAME = "hyperneuron_session"
+
+
+def _safe_redirect_target(target: str) -> str:
+    if not target.startswith("/") or target.startswith("//") or "\\" in target:
+        return "/"
+    return target
+
 
 oauth = OAuth()
 if settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET:
@@ -71,6 +79,7 @@ def create_auth_router(port_plane: str) -> APIRouter:
         password: str = Form(...),
         next_url: str = Form("/"),
     ):
+        next_url = _safe_redirect_target(next_url)
         client_ip = request.client.host if request.client else "127.0.0.1"
         async with AsyncSessionLocal() as session:
             res = await session.execute(select(UserAccount).where(UserAccount.username == username))
@@ -84,7 +93,8 @@ def create_auth_router(port_plane: str) -> APIRouter:
 
             if not valid:
                 await log_security_event(username, "LOGIN_FAILED", port_plane, "BLOCK", client_ip, "Invalid credentials")
-                return RedirectResponse(url=f"/login?error=Invalid+credentials&next={next_url}", status_code=303)
+                query = urlencode({"error": "Invalid credentials", "next": next_url})
+                return RedirectResponse(url=f"/login?{query}", status_code=303)
 
             role = user.role if user else "admin"
             email = user.email if user else "admin@hyperneuron.io"
@@ -111,10 +121,15 @@ def create_auth_router(port_plane: str) -> APIRouter:
 
     @router.get("/google")
     async def google_sso_login(request: Request, next_url: str = "/"):
+        next_url = _safe_redirect_target(next_url)
         if "google" not in oauth._clients:
             # Helpful redirect if Google OAuth env keys are not yet populated
+            query = urlencode({
+                "error": "Google SSO not configured in .env (Set GOOGLE_CLIENT_ID)",
+                "next": next_url,
+            })
             return RedirectResponse(
-                url=f"/login?error=Google+SSO+not+configured+in+.env+(Set+GOOGLE_CLIENT_ID)&next={next_url}",
+                url=f"/login?{query}",
                 status_code=303,
             )
         request.session["next_url"] = next_url
@@ -159,7 +174,7 @@ def create_auth_router(port_plane: str) -> APIRouter:
             })
 
         await log_security_event(email, "GOOGLE_SSO_LOGIN", port_plane, "ALLOW", client_ip, "Authenticated via Google SSO")
-        next_url = request.session.pop("next_url", "/")
+        next_url = _safe_redirect_target(request.session.pop("next_url", "/"))
         response = RedirectResponse(url=next_url, status_code=303)
         response.set_cookie(key=COOKIE_NAME, value=jwt_token, httponly=True, samesite="lax", max_age=43200)
         return response
