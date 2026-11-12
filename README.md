@@ -1,161 +1,78 @@
-# 🧠 HYPERNEURON AI DEEP LAB
-*Private, Multi-Agent Deep Research & Intelligence Engine*
+# Hyperneuron AI Platform
 
----
+Hyperneuron is a private multi-agent research platform built with FastAPI and LangGraph. The end-user workspace is intentionally minimal: sign in, submit a prompt, and read the generated response. Operational capabilities are exposed through separate protected workspaces.
 
-## 🏛️ Executive Summary
+## Platform topology
 
-**Hyperneuron AI Deep Lab** is a sovereign, multi-agent intelligence platform built for high-stakes **Corporate Intelligence** and **Legal/Financial Due Diligence**. By pairing high-performance local/private LLMs with an orchestrated LangGraph state machine, Hyperneuron automates exhaustive research, first-principles reasoning, web citation provenance, and financial/quantitative verification without sacrificing data privacy.
+| Workspace | URL (local) | Purpose |
+| --- | --- | --- |
+| Generative AI | http://localhost:3000 | User prompt and generated result |
+| Orchestrator | http://localhost:3001 | Planning, routing, synthesis and run history |
+| Agentic AI | http://localhost:3002 | Specialist agents and model assignments |
+| Database | http://localhost:3003 | PostgreSQL and Redis service health |
+| Security | http://localhost:3004 | Authentication and audit events |
+| Governance | http://localhost:3005 | Baseline policies and governance visibility |
+| Backend API | http://localhost:8000 | API health, OpenAPI docs and metrics |
+| API docs | http://localhost:8000/docs | Swagger UI |
+| Prometheus metrics | http://localhost:8000/metrics | HTTP request counters |
 
----
+All six browser workspaces use the same authentication service and protected API. Operational consoles require an administrator role.
 
-## 📐 System Architecture & Agent Lineup
+## Architecture
 
-Hyperneuron operates via a deterministic **Hub-and-Spoke Fan-Out / Fan-In** supervisor pattern. The **Chief Orchestrator** decomposes prompts into structured research rubrics, dispatches tasks concurrently to specialized parallel workers, audits findings, and synthesizes an executive markdown report.
+- **Generative UI:** isolated prompt-first interface; only the user prompt and final answer are shown.
+- **Orchestration:** FastAPI invokes the existing LangGraph supervisor and specialist workflow. Specialist execution fans out in parallel and converges through a single synthesis barrier.
+- **Agentic AI:** separate workspace for the Chief Orchestrator, Deep Thinking Researcher, Deep Citation Researcher and Qualified Quantified Researcher.
+- **Data services:** PostgreSQL stores users, research runs, audit events and governance policies. Redis provides short-lived runtime state and login-attempt throttling.
+- **Security:** signed HTTP-only session cookie, local password authentication, optional Google OpenID Connect, role checks, login throttling and audit logging.
+- **Governance:** seeded baseline policy records for data retention, model approval, human oversight and access review.
 
-```
-                  ┌────────────────────────────────────────┐
-                  │ User Prompt (www.hyperneuron.io UI)    │
-                  └──────────────────┬─────────────────────┘
-                                     │
-                                     ▼
-                  ┌────────────────────────────────────────┐
-                  │ Request Quantification & Planning      │
-                  │ (Chief Orchestrator: DeepSeek-V4.1)    │
-                  └──────────────────┬─────────────────────┘
-                                     │
-          ┌──────────────────────────┼──────────────────────────┐
-          ▼                          ▼                          ▼
-┌──────────────────┐       ┌──────────────────┐       ┌──────────────────┐
-│ Deep Thinking    │       │ Deep Citation    │       │ Qualified Quant  │
-│ Researcher       │       │ Researcher       │       │ Researcher       │
-│ (Gemma 4)        │       │ (Llama 4 Scout)  │       │ (Qwen 3.6)       │
-└─────────┬────────┘       └─────────┬────────┘       └─────────┬────────┘
-          │                          │                          │
-          └──────────────────────────┼──────────────────────────┘
-                                     │ (Structured Dossiers)
-                                     ▼
-                  ┌────────────────────────────────────────┐
-                  │ Synthesis & Citation Audit             │
-                  │ (Chief Orchestrator)                   │
-                  └──────────────────┬─────────────────────┘
-                                     │
-                                     ▼
-                  ┌────────────────────────────────────────┐
-                  │ Stream Final Executive Markdown Report │
-                  └────────────────────────────────────────┘
-```
+## Quick start with Docker Compose
 
-### Agent Specialization Matrix
+1. Copy .env.example to .env.
+2. Review the local credentials and inference endpoint in .env.
+3. Start the stack with the command: docker compose up --build.
+4. Open http://localhost:3000.
 
-| Agent Role | Responsibility | Default Model ID |
-| :--- | :--- | :--- |
-| **Chief Orchestrator** | Task planning, rubric generation, and final synthesis. | `deepseek-v4.1-flash` |
-| **Deep Thinking Researcher** | First-principles reasoning, edge cases, strategic/risk analysis. | `gemma4:31b` |
-| **Deep Citation Researcher** | Live search execution, source provenance, URL verification. | `llama4:scout` |
-| **Qualified Quantified Researcher** | Quantitative metrics, financial ratios, benchmarks, data tables. | `qwen3.6:27b` |
+The local first-run administrator is username admin, password admin. The administrator is forced to change this password on the first sign-in before any workspace API can be used. This default is for local development only. Set a unique ADMIN_PASSWORD, a long random SESSION_SECRET, secure cookies and HTTPS before deploying outside a trusted local machine.
 
----
+PostgreSQL and Redis are available to application containers on the Compose network. Their ports are not published to the host by default.
 
-## 🖥️ UI Preview & Execution Flow
+## Google SSO setup
 
-The glassmorphic Tailwind frontend (`www.hyperneuron.io` interface) connects to FastAPI via Server-Sent Events (SSE), illuminating real-time agent status cards as LangGraph executes the workflow.
+1. Create an OAuth 2.0 Web application client in Google Cloud Console.
+2. Add the exact authorized redirect URI http://localhost:8000/auth/google/callback for local development.
+3. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.
+4. Restart the API and UI services.
 
-```
-+-------------------------------------------------------------------+
-| www.hyperneuron.io                        Private Multi-Agent Lab |
-+-------------------------------------------------------------------+
-| [ Enter enterprise intelligence or due diligence prompt... ] [Run] |
-+-------------------------------------------------------------------+
-| [ Request Quantification (Chief Orchestrator) ]                   |
-|   DeepSeek-V4.1-Flash • Status: Completed                         |
-|                                                                   |
-|   [ Deep Thinking ]    [ Deep Citation ]    [ Quantified Analyst ]|
-|      Gemma 4             Llama 4 Scout         Qwen 3.6           |
-|      (Completed)            (Completed)           (Completed)     |
-+-------------------------------------------------------------------+
-```
+Google identities are provisioned with the user role. Administrator access remains an explicit local/admin provisioning responsibility; Google sign-in does not automatically grant admin privileges. To allow a specific Google identity to sign in as the seeded administrator, set ADMIN_EMAIL to that verified Google email before the administrator is first created. For production, use HTTPS and set SESSION_COOKIE_SECURE=true.
 
----
+## Local Python development
 
-## ⚡ Quick Start Guide
+Install Python 3.11+ and the packages in requirements.txt. Start PostgreSQL and Redis, configure .env, then run the API:
 
-### 1. Prerequisites
-* Python 3.10+
-* [Ollama](https://ollama.com/) running locally (or custom vLLM / OpenRouter endpoints)
+    uvicorn backend.main:app --reload --port 8000
 
-### 2. Clone & Setup Environment
-```bash
-git clone https://github.com/roime81/hyperneuron-ai.git
-cd hyperneuron-ai
+Run the user UI in another terminal:
 
-# Create and activate virtual environment
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+    CONSOLE_SECTION=user uvicorn backend.console:app --reload --port 3000
 
-# Install dependencies
-pip install -r requirements.txt
-```
+Run each operational console separately by setting CONSOLE_SECTION to orchestrator, agents, database, security or governance, and assigning its matching port from the table above.
 
-### 3. Configure Variables
-Copy the environment template and configure your model tags and base URLs:
-```bash
-cp .env.example .env
-```
+For non-Docker local development, set DATABASE_URL to a reachable PostgreSQL instance and REDIS_URL to a reachable Redis instance. If DATABASE_URL is omitted, the application uses a local SQLite file for basic development.
 
-Default `.env` configuration:
-```env
-LLM_BASE_URL=http://localhost:11434/v1
-LLM_API_KEY=ollama
+## Configuration
 
-ORCHESTRATOR_MODEL=deepseek-v4.1-flash
-THINKING_MODEL=gemma4:31b
-CITATION_MODEL=llama4:scout
-QUANT_MODEL=qwen3.6:27b
+See .env.example for the full environment variable list. The LLM provider remains OpenAI-compatible (Ollama by default). In Docker, host.docker.internal is used to reach an Ollama instance running on the host.
 
-TAVILY_API_KEY=
-```
+## Operational notes
 
-### 4. Launch Application
-```bash
-uvicorn backend.main:app --reload --port 8000
-```
-Open **`http://localhost:8000`** in your browser to run Hyperneuron.
+- Database tables are initialized automatically at API startup for this MVP. Use a versioned migration system such as Alembic before introducing production schema changes.
+- Google SSO requires valid OAuth credentials and an exact redirect URI.
+- Configure HTTPS termination, trusted proxy settings, backups, secret management, retention schedules and external observability before production.
+- The security and governance consoles provide initial administrative visibility; they are not a substitute for a full SIEM, policy engine or compliance certification.
+- Research outputs depend on the configured language models and web-search provider availability.
 
----
+## License
 
-## 📂 Project Structure
-
-```text
-hyperneuron-ai/
-├── .env.example
-├── .gitignore
-├── README.md
-├── requirements.txt
-├── backend/
-│   ├── __init__.py
-│   ├── config.py          # Unified LLM client provider
-│   ├── state.py           # LangGraph TypedDict & Pydantic schemas
-│   ├── tools.py           # DuckDuckGo search & safe math tools
-│   ├── agents.py          # Chief Orchestrator + 3 specialist nodes
-│   ├── graph.py           # State machine & conditional routing
-│   └── main.py            # FastAPI server & SSE streaming
-└── frontend/
-    └── index.html         # Tailwind UI with real-time SSE listeners
-```
-
----
-
-## 🛠️ Tech Stack
-
-* **Orchestration:** LangGraph & LangChain
-* **API Framework:** FastAPI & Uvicorn (with SSE streaming)
-* **Frontend:** Tailwind CSS & Marked.js
-* **Inference:** Ollama / vLLM / OpenRouter
-* **Models:** DeepSeek, Gemma, Llama, and Qwen open-weight families
-
----
-
-## 📄 License
-
-Distributed under the **MIT License**. See `LICENSE` for details.
+MIT. See LICENSE.
